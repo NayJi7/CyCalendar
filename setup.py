@@ -481,6 +481,193 @@ Ce script va vous guider à travers les étapes d'installation.
                     return f"{username}/CyCalendar"
                 else:
                     sys.exit(1)
+                    
+    def select_repo(self):
+        while True:
+            try:
+                # Vérifier si un fork existe déjà
+                repos = subprocess.run(["gh", "repo", "list", "--limit", "100"], 
+                                    capture_output=True, 
+                                    text=True, 
+                                    check=True).stdout.strip().split('\n')
+                
+                # Vérifier si CyCalendar est déjà forké
+                cy_repos = [repo for repo in repos if "CyCalendar" in repo]
+                
+                print("\nVos dépôts GitHub :")
+                print(f"0. Je n'ai pas encore fork le repo CyCalendar et donc je ne le vois pas dans les options")
+                
+                if cy_repos:
+                    print("Dépôts CyCalendar existants :")
+                    for i, repo in enumerate(cy_repos, 1):
+                        print(f"{i}. {repo} [RECOMMANDÉ]")
+                    
+                print("\nAutres dépôts :")
+                for i, repo in enumerate(repos, len(cy_repos) + 1):
+                    if repo not in cy_repos:
+                        print(f"{i}. {repo}")
+                
+                choice = input("\nSélectionnez votre fork de CyCalendar (ou 0 pour en créer un nouveau) : ")
+                
+                if choice == "0":
+                    
+                    # Check if already authenticated
+                    try:
+                        subprocess.run(["gh", "auth", "status"], check=True, capture_output=True)
+                        print("✅ Déjà connecté à GitHub!")
+                    except subprocess.CalledProcessError:
+                        # Authentication needed
+                        print("Authentification GitHub requise...")
+                        # Check if we have a token in .env file
+                        try:
+                            with open('.env', 'r') as env_file:
+                                env_content = env_file.read()
+                                if 'WORKFLOW_PAT=' in env_content:
+                                    token = env_content.split('WORKFLOW_PAT=')[1].split('\n')[0]
+                                    subprocess.run(["gh", "auth", "login", "--with-token"], 
+                                                input=token.encode(), 
+                                                check=True)
+                                    print("✅ Authentifié avec le token existant!")
+                                else:
+                                    # We need to login interactively
+                                    subprocess.run(["gh", "auth", "login"], check=True)
+                        except FileNotFoundError:
+                            # No .env file, login interactively
+                            subprocess.run(["gh", "auth", "login"], check=True)
+                    
+                    print("\nCréation d'un fork du dépôt CyCalendar...")
+                    # Ne pas cloner le repo, juste le forker
+                    try:
+                        fork_result = subprocess.run(
+                            ["gh", "repo", "fork", "NayJi7/CyCalendar", "--clone=false"],
+                            capture_output=True,
+                            text=True,
+                            check=False  # Ne pas lever d'exception automatiquement
+                        )
+                        
+                        if fork_result.returncode != 0:
+                            print(f"❌ Erreur lors du fork via CLI: {fork_result.stderr}")
+                            print("Ouverture du navigateur pour un fork manuel...")
+                            webbrowser.open("https://github.com/NayJi7/CyCalendar")
+                            
+                            # Demander à l'utilisateur de confirmer qu'il a forké le repo
+                            username = input("\nUne fois le fork créé, entrez votre nom d'utilisateur GitHub: ")
+                            print(f"✅ Fork manuel enregistré sous: {username}/CyCalendar")
+                            
+                            # Activation du workflow directement via l'URL spécifique
+                            print("\nActivation du workflow pour votre fork...")
+                            workflow_url = f"https://github.com/{username}/CyCalendar/actions/workflows/update_calendar.yml"
+                            print(f"Ouverture de l'URL: {workflow_url}")
+                            webbrowser.open(workflow_url)
+                            print("Veuillez cliquer sur 'Enable workflow' sur la page qui s'ouvre.")
+                            input("Appuyez sur Entrée une fois que vous avez activé le workflow...")
+                            
+                            return f"{username}/CyCalendar"
+                        else:
+                            print("✅ Fork de CyCalendar effectué avec succès!")
+                            
+                            # Extraire le nom du fork à partir des résultats
+                            for line in fork_result.stdout.splitlines():
+                                if "Created fork" in line:
+                                    parts = line.split()
+                                    for part in parts:
+                                        if "/" in part and "CyCalendar" in part:
+                                            fork_name = part.strip()
+                                            
+                                            # Activer le workflow directement
+                                            print("\nActivation du workflow pour votre fork...")
+                                            workflow_url = f"https://github.com/{fork_name}/actions/workflows/update_calendar.yml"
+                                            print(f"Ouverture de l'URL: {workflow_url}")
+                                            webbrowser.open(workflow_url)
+                                            print("Veuillez cliquer sur 'Enable workflow' sur la page qui s'ouvre.")
+                                            input("Appuyez sur Entrée une fois que vous avez activé le workflow...")
+                                            
+                                            return fork_name
+                            
+                            # Si on ne peut pas extraire le nom automatiquement
+                            username_result = subprocess.run(
+                                ["gh", "api", "user", "-q", ".login"],
+                                capture_output=True,
+                                text=True,
+                                check=True
+                            )
+                            username = username_result.stdout.strip()
+                            
+                            if username:
+                                fork_name = f"{username}/CyCalendar"
+                                print(f"Fork créé sous: {fork_name}")
+                                
+                                # Activation du workflow directement via l'URL spécifique
+                                print("\nActivation du workflow pour votre fork...")
+                                workflow_url = f"https://github.com/{fork_name}/actions/workflows/update_calendar.yml"
+                                print(f"Ouverture de l'URL: {workflow_url}")
+                                webbrowser.open(workflow_url)
+                                print("Veuillez cliquer sur 'Enable workflow' sur la page qui s'ouvre.")
+                                input("Appuyez sur Entrée une fois que vous avez activé le workflow...")
+                                
+                                return fork_name
+                    except Exception as e:
+                        print(f"❌ Erreur inattendue lors du fork: {str(e)}")
+                        print("Ouverture du navigateur pour un fork manuel...")
+                        webbrowser.open("https://github.com/NayJi7/CyCalendar")
+                        
+                        # Demander à l'utilisateur de confirmer qu'il a forké le repo
+                        username = input("\nUne fois le fork créé, entrez votre nom d'utilisateur GitHub: ")
+                        print(f"✅ Fork manuel enregistré sous: {username}/CyCalendar")
+                        
+                        # Activation du workflow directement via l'URL spécifique
+                        print("\nActivation du workflow pour votre fork...")
+                        workflow_url = f"https://github.com/{username}/CyCalendar/actions/workflows/update_calendar.yml"
+                        print(f"Ouverture de l'URL: {workflow_url}")
+                        webbrowser.open(workflow_url)
+                        print("Veuillez cliquer sur 'Enable workflow' sur la page qui s'ouvre.")
+                        input("Appuyez sur Entrée une fois que vous avez activé le workflow...")
+                        
+                        return f"{username}/CyCalendar"
+                    
+                    raise ValueError("Impossible de déterminer le nom du dépôt forké")
+                
+                # Sélectionner un repo existant
+                choice = int(choice)
+                if 1 <= choice <= len(cy_repos):
+                    # Sélection d'un dépôt CyCalendar
+                    selected_repo = cy_repos[choice - 1].split()[0]
+                else:
+                    # Sélection d'un autre dépôt
+                    index = choice - len(cy_repos) - 1
+                    if 0 <= index < len(repos):
+                        selected_repo = repos[index].split()[0]
+                    else:
+                        print("❌ Choix invalide.")
+                        continue
+                
+                print(f"Dépôt sélectionné: {selected_repo}")
+                return selected_repo
+            
+            except subprocess.CalledProcessError as e:
+                print(f"❌ Erreur lors de l'accès aux dépôts: {e}")
+                print(f"Détails: {e.stderr if hasattr(e, 'stderr') else 'Aucun détail disponible'}")
+                
+                # Proposer de créer manuellement un fork
+                print("\nImpossible de lister ou créer un fork automatiquement.")
+                print("Veuillez vous rendre sur https://github.com/NayJi7/CyCalendar et cliquer sur 'Fork'.")
+                
+                manual_fork = input("\nAvez-vous créé manuellement un fork? (y/n): ")
+                if manual_fork.lower() == 'y':
+                    username = input("Entrez votre nom d'utilisateur GitHub: ")
+                    fork_name = f"{username}/CyCalendar"
+                    
+                    # Activation du workflow directement via l'URL spécifique
+                    print("\nActivation du workflow pour votre fork...")
+                    workflow_url = f"https://github.com/{fork_name}/actions/workflows/update_calendar.yml"
+                    print(f"Ouverture de l'URL: {workflow_url}")
+                    webbrowser.open(workflow_url)
+                    print("Veuillez cliquer sur 'Enable workflow' sur la page qui s'ouvre.")
+                    input("Appuyez sur Entrée une fois que vous avez activé le workflow...")
+                    
+                    return fork_name
+                else:
+                    sys.exit(1)
 
     def setup_github_actions(self):
         """Configure GitHub Actions."""
@@ -517,7 +704,7 @@ Ce script va vous guider à travers les étapes d'installation.
             # Vérifier si le dépôt existe et est accessible
             try:
                 subprocess.run(["gh", "repo", "view", repo_name], 
-                              capture_output=True, check=True)
+                            capture_output=True, check=True)
                 print(f"✅ Dépôt {repo_name} accessible")
             except subprocess.CalledProcessError:
                 print(f"❌ Impossible d'accéder au dépôt {repo_name}")
@@ -572,7 +759,7 @@ Ce script va vous guider à travers les étapes d'installation.
             print("\nRécupération de la liste des workflows...")
             try:
                 result = subprocess.run(["gh", "workflow", "list", "-R", repo_name], 
-                                       capture_output=True, text=True, check=True)
+                                    capture_output=True, text=True, check=True)
                 print(result.stdout)
 
                 # Extraction de l'ID du workflow
@@ -595,17 +782,20 @@ Ce script va vous guider à travers les étapes d'installation.
                     print("⚠️ Workflow 'Update Google Calendar' non trouvé")
                     print("Vérifiez que les workflows sont activés dans votre dépôt GitHub")
                     
-                    # Ouvrir la page des actions pour activation manuelle
-                    open_actions = input("Voulez-vous ouvrir la page des actions pour activer manuellement les workflows? (y/n): ")
+                    # Ouvrir la page du workflow spécifique plutôt que la page d'actions générale
+                    open_actions = input("Voulez-vous ouvrir la page du workflow pour l'activer manuellement? (y/n): ")
                     if open_actions.lower() == 'y':
-                        webbrowser.open(f"https://github.com/{repo_name}/actions")
-                        print("Cliquez sur le bouton 'I understand my workflows, go ahead and enable them'")
-                        input("Appuyez sur Entrée une fois que vous avez activé les workflows...")
+                        # URL directe vers le workflow spécifique
+                        workflow_url = f"https://github.com/{repo_name}/actions/workflows/update_calendar.yml"
+                        print(f"Ouverture de l'URL: {workflow_url}")
+                        webbrowser.open(workflow_url)
+                        print("Cliquez sur le bouton 'Enable workflow' sur la page qui s'ouvre")
+                        input("Appuyez sur Entrée une fois que vous avez activé le workflow...")
                         
                         # Nouvelle tentative de lister les workflows
                         print("Nouvelle tentative de récupération des workflows...")
                         result = subprocess.run(["gh", "workflow", "list", "-R", repo_name], 
-                                               capture_output=True, text=True, check=True)
+                                            capture_output=True, text=True, check=True)
                         workflows = result.stdout.splitlines()
                         workflow_line = next((line for line in workflows if "Update Google Calendar" in line), None)
                         
@@ -621,13 +811,16 @@ Ce script va vous guider à travers les étapes d'installation.
                 print(f"❌ Erreur lors de la configuration du workflow : {e}")
                 print(f"Détails: {e.stderr if hasattr(e, 'stderr') else 'Aucun détail disponible'}")
                 
-                # Proposer une activation manuelle
-                print("\nVous pouvez activer manuellement les workflows en visitant:")
-                print(f"https://github.com/{repo_name}/actions")
+                # Proposer une activation manuelle avec URL spécifique
+                print("\nVous pouvez activer manuellement le workflow en visitant:")
+                workflow_url = f"https://github.com/{repo_name}/actions/workflows/update_calendar.yml"
+                print(workflow_url)
                 
                 open_page = input("Ouvrir cette page maintenant? (y/n): ")
                 if open_page.lower() == 'y':
-                    webbrowser.open(f"https://github.com/{repo_name}/actions")
+                    webbrowser.open(workflow_url)
+                    print("Cliquez sur le bouton 'Enable workflow' sur la page qui s'ouvre")
+                    input("Appuyez sur Entrée une fois que vous avez activé le workflow...")
             except Exception as e:
                 print(f"❌ Une erreur s'est produite : {e}")
                 import traceback
@@ -647,7 +840,7 @@ Ce script va vous guider à travers les étapes d'installation.
             print("Veuillez résoudre l'erreur affichée ou ajouter les secrets manuellement dans les paramètres de votre repo GitHub")
             import traceback
             traceback.print_exc()
-
+        
     def run(self):
         try:
             try:

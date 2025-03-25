@@ -819,11 +819,7 @@ Ce script va vous guider à travers les étapes d'installation.
                 open_page = input("Ouvrir cette page maintenant? (y/n): ")
                 if open_page.lower() == 'y':
                     webbrowser.open(workflow_url)
-                    print("Cliquez sur le bouton 'Enable' sur la page qui s'ouvre")
-                    input("Appuyez sur Entrée une fois que vous avez activé les workflow...")
-                    
-                    webbrowser.open(workflow_url)
-                    print("Cliquez sur le bouton 'Enable workflow'")
+                    print("Cliquez sur le bouton 'Enable Workflow' sur la page qui s'ouvre puis sur la page ensuite")
                     input("Appuyez sur Entrée une fois que vous avez activé le workflow...")
             except Exception as e:
                 print(f"❌ Une erreur s'est produite : {e}")
